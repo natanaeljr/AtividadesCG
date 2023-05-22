@@ -117,7 +117,7 @@ int main()
 	GLint modelLoc = glGetUniformLocation(shaderID, "model");
 	//
 	model = glm::rotate(model, /*(GLfloat)glfwGetTime()*/glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	glUniformMatrix4fv(modelLoc, 1, FALSE, glm::value_ptr(model));
+	glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -132,8 +132,8 @@ int main()
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f); //cor de fundo
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glLineWidth(10);
-		glPointSize(20);
+		// glLineWidth(10);
+		// glPointSize(20);
 
 		float angle = (GLfloat)glfwGetTime();
 
@@ -143,29 +143,29 @@ int main()
 			model = glm::rotate(model, angle, glm::vec3(1.0f, 0.0f, 0.0f));
 			
 		}
-		else if (rotateY)
+		if (rotateY)
 		{
 			model = glm::rotate(model, angle, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		}
-		else if (rotateZ)
+		if (rotateZ)
 		{
 			model = glm::rotate(model, angle, glm::vec3(0.0f, 0.0f, 1.0f));
 
 		}
 
-		glUniformMatrix4fv(modelLoc, 1, FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
 		// Chamada de desenho - drawcall
 		// Poligono Preenchido - GL_TRIANGLES
 		
 		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 18);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		// Chamada de desenho - drawcall
 		// CONTORNO - GL_LINE_LOOP
 		
-		glDrawArrays(GL_POINTS, 0, 18);
-		glBindVertexArray(0);
+		// glDrawArrays(GL_POINTS, 0, 18);
+		// glBindVertexArray(0);
 
 		// Troca os buffers da tela
 		glfwSwapBuffers(window);
@@ -187,27 +187,18 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 	if (key == GLFW_KEY_X && action == GLFW_PRESS)
 	{
-		rotateX = true;
-		rotateY = false;
-		rotateZ = false;
+		rotateX = !rotateX;
 	}
 
 	if (key == GLFW_KEY_Y && action == GLFW_PRESS)
 	{
-		rotateX = false;
-		rotateY = true;
-		rotateZ = false;
+		rotateY = !rotateY;
 	}
 
 	if (key == GLFW_KEY_Z && action == GLFW_PRESS)
 	{
-		rotateX = false;
-		rotateY = false;
-		rotateZ = true;
+		rotateZ = !rotateZ;
 	}
-
-
-
 }
 
 //Esta função está basntante hardcoded - objetivo é compilar e "buildar" um programa de
@@ -273,32 +264,58 @@ int setupGeometry()
 
 		//Base da pirâmide: 2 triângulos
 		//x    y    z    r    g    b
-		-0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
-		-0.5, -0.5,  0.5, 0.0, 1.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 1.0, 0.0,
+		-0.5, -0.5,  0.5, 0.0, 1.0, 0.0,
+		 0.5, -0.5, -0.5, 0.0, 1.0, 0.0,
+
+		-0.5, -0.5, 0.5,  0.0, 1.0, 0.0,
+		 0.5, -0.5,  0.5, 0.0, 1.0, 0.0,
+		 0.5, -0.5, -0.5, 0.0, 1.0, 0.0,
+
+		// Esquerda
+		-0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+		-0.5,  0.5, -0.5, 1.0, 0.0, 0.0,
+		-0.5,  0.5,  0.5, 1.0, 0.0, 0.0,
+
+		-0.5, -0.5,  0.5, 1.0, 0.0, 0.0,
+		-0.5,  0.5,  0.5, 1.0, 0.0, 0.0,
+		-0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+
+		// Direita
 		 0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
+		 0.5,  0.5, -0.5, 1.0, 0.0, 1.0,
+		 0.5,  0.5,  0.5, 1.0, 0.0, 1.0,
 
-		 -0.5, -0.5, 0.5, 1.0, 1.0, 0.0,
-		  0.5, -0.5,  0.5, 0.0, 1.0, 1.0,
-		  0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
+		 0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
+		 0.5,  0.5,  0.5, 1.0, 0.0, 1.0,
+		 0.5, -0.5,  0.5, 1.0, 0.0, 1.0,
 
-		 //
-		 -0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
-		  0.0,  0.5,  0.0, 1.0, 1.0, 0.0,
-		  0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
+		// Trás
+		-0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
+		-0.5,  0.5, -0.5, 1.0, 1.0, 0.0,
+		 0.5,  0.5, -0.5, 1.0, 1.0, 0.0,
 
-		  -0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
-		  0.0,  0.5,  0.0, 1.0, 0.0, 1.0,
-		  -0.5, -0.5, 0.5, 1.0, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
+		 0.5,  0.5, -0.5, 1.0, 1.0, 0.0,
+		 0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
 
-		   -0.5, -0.5, 0.5, 1.0, 1.0, 0.0,
-		  0.0,  0.5,  0.0, 1.0, 1.0, 0.0,
-		  0.5, -0.5, 0.5, 1.0, 1.0, 0.0,
+		// Frente
+		-0.5, -0.5,  0.5, 0.0, 1.0, 1.0,
+		-0.5,  0.5,  0.5, 0.0, 1.0, 1.0,
+		 0.5,  0.5,  0.5, 0.0, 1.0, 1.0,
 
-		   0.5, -0.5, 0.5, 0.0, 1.0, 1.0,
-		  0.0,  0.5,  0.0, 0.0, 1.0, 1.0,
-		  0.5, -0.5, -0.5, 0.0, 1.0, 1.0,
+		-0.5, -0.5,  0.5, 0.0, 1.0, 1.0,
+		 0.5,  0.5,  0.5, 0.0, 1.0, 1.0,
+		 0.5, -0.5,  0.5, 0.0, 1.0, 1.0,
 
+		// Cima
+		-0.5,  0.5, -0.5, 0.0, 0.0, 1.0,
+		-0.5,  0.5,  0.5, 0.0, 0.0, 1.0,
+		 0.5,  0.5, -0.5, 0.0, 0.0, 1.0,
 
+		-0.5,  0.5, 0.5,  0.0, 0.0, 1.0,
+		 0.5,  0.5,  0.5, 0.0, 0.0, 1.0,
+		 0.5,  0.5, -0.5, 0.0, 0.0, 1.0,
 	};
 
 	GLuint VBO, VAO;

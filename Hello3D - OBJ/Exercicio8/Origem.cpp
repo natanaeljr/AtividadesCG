@@ -9,7 +9,9 @@
 
 #include <iostream>
 #include <string>
+#include <fstream>
 #include <assert.h>
+#include <optional>
 
 using namespace std;
 
@@ -19,7 +21,7 @@ using namespace std;
 // GLFW
 #include <GLFW/glfw3.h>
 
-//GLM
+// GLM
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -58,6 +60,34 @@ const GLchar* fragmentShaderSource = "#version 330\n"
 "}\n\0";
 
 bool rotateX=false, rotateY=false, rotateZ=false;
+
+/// Read file contents to a string
+auto read_file_to_string(const std::string& filename) -> std::optional<std::string>
+{
+	std::string string;
+	std::fstream fstream(filename, std::ios::in | std::ios::binary);
+	if (!fstream) {
+	    fprintf(stderr, "%s (%s)\n", std::strerror(errno), filename.c_str());
+		return std::nullopt;
+	}
+	fstream.seekg(0, std::ios::end);
+	string.reserve(fstream.tellg());
+	fstream.seekg(0, std::ios::beg);
+	string.assign((std::istreambuf_iterator<char>(fstream)), std::istreambuf_iterator<char>());
+	return string;
+}
+
+struct Obj {
+};
+
+auto parse_obj(const std::string& filename) -> std::optional<Obj>
+{
+	auto file = read_file_to_string(filename);
+	if (file)
+
+	printf("OBJ dump:\n%s", file->c_str());
+	return std::nullopt;
+}
 
 // Função MAIN
 int main()
@@ -98,6 +128,9 @@ int main()
 	cout << "Renderer: " << renderer << endl;
 	cout << "OpenGL version supported " << version << endl;
 
+	// Carrega o OBJ
+	auto obj = parse_obj("../../3D_Models/Suzanne/suzanneTri.obj");
+
 	// Definindo as dimensões da viewport com as mesmas dimensões da janela da aplicação
 	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);
@@ -117,7 +150,7 @@ int main()
 	GLint modelLoc = glGetUniformLocation(shaderID, "model");
 	//
 	model = glm::rotate(model, /*(GLfloat)glfwGetTime()*/glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	glUniformMatrix4fv(modelLoc, 1, FALSE, glm::value_ptr(model));
+	glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -154,7 +187,7 @@ int main()
 
 		}
 
-		glUniformMatrix4fv(modelLoc, 1, FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
 		// Chamada de desenho - drawcall
 		// Poligono Preenchido - GL_TRIANGLES
 		
