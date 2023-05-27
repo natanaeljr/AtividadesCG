@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 #include <assert.h>
+#include <cstdlib>
+#include <ctime>
 
 using namespace std;
 
@@ -33,7 +35,7 @@ int setupShader();
 int setupGeometry();
 
 // Dimensões da janela (pode ser alterado em tempo de execução)
-const GLuint WIDTH = 1000, HEIGHT = 1000;
+const GLuint WIDTH = 720, HEIGHT = 720;
 
 // Código fonte do Vertex Shader (em GLSL): ainda hardcoded
 const GLchar* vertexShaderSource = "#version 330\n"
@@ -57,7 +59,7 @@ const GLchar* fragmentShaderSource = "#version 330\n"
 "color = finalColor;\n"
 "}\n\0";
 
-bool rotateX=false, rotateY=false, rotateZ=false;
+bool rotateX=true, rotateY=true, rotateZ=true;
 
 // Função MAIN
 int main()
@@ -121,6 +123,34 @@ int main()
 
     glEnable(GL_DEPTH_TEST);
 
+    std::srand(std::time(nullptr));
+
+    /// Transform component
+    struct Transform {
+        glm::vec3 position {0.0f};
+        glm::vec3 scale    {0.5f};
+        glm::vec3 rotation {0.0f};
+
+        glm::mat4 matrix() {
+            glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), position);
+            glm::mat4 rotation_mat = glm::mat4(1.0f);
+            rotation_mat = glm::rotate(rotation_mat, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            rotation_mat = glm::rotate(rotation_mat, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            rotation_mat = glm::rotate(rotation_mat, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+            glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
+            return translation_mat * rotation_mat * scale_mat;
+        }
+    };
+
+    constexpr size_t kCubesCount = 20;
+    Transform transforms[kCubesCount];
+    for (auto& transform : transforms) {
+        transform.position.x = ((std::rand() % 1000) / 555.f) - 0.9f; // range [-0.9f, +0.9f]
+        transform.position.y = ((std::rand() % 1000) / 555.f) - 0.9f; // range [-0.9f, +0.9f]
+        transform.position.z = ((std::rand() % 1000) / 555.f) - 0.9f; // range [-0.9f, +0.9f]
+        transform.scale = glm::vec3(0.2f);
+        transform.rotation = glm::vec3((std::rand() % int(2*M_PI)) - M_PI);
+    }
 
     // Loop da aplicação - "game loop"
     while (!glfwWindowShouldClose(window))
@@ -137,29 +167,15 @@ int main()
 
         float angle = (GLfloat)glfwGetTime();
 
-        model = glm::mat4(1); 
-        if (rotateX)
-        {
-            model = glm::rotate(model, angle, glm::vec3(1.0f, 0.0f, 0.0f));
+        for (int i = 0; i < kCubesCount; i++) {
+            Transform transform = transforms[i];
+            transform.rotation += glm::vec3(angle);
+            model = transform.matrix();
 
+            glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
+            glBindVertexArray(VAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-        if (rotateY)
-        {
-            model = glm::rotate(model, angle, glm::vec3(0.0f, 1.0f, 0.0f));
-
-        }
-        if (rotateZ)
-        {
-            model = glm::rotate(model, angle, glm::vec3(0.0f, 0.0f, 1.0f));
-
-        }
-
-        glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
-        // Chamada de desenho - drawcall
-        // Poligono Preenchido - GL_TRIANGLES
-
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // Chamada de desenho - drawcall
         // CONTORNO - GL_LINE_LOOP
