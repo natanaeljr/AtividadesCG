@@ -61,6 +61,26 @@ const GLchar* fragmentShaderSource = "#version 330\n"
 
 bool rotateX=true, rotateY=true, rotateZ=true;
 
+/// Transform component
+struct Transform {
+    glm::vec3 position {0.0f};
+    glm::vec3 scale    {0.5f};
+    glm::vec3 rotation {0.0f};
+
+    glm::mat4 matrix() {
+        glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), position);
+        glm::mat4 rotation_mat = glm::mat4(1.0f);
+        rotation_mat = glm::rotate(rotation_mat, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+        rotation_mat = glm::rotate(rotation_mat, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+        rotation_mat = glm::rotate(rotation_mat, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
+        return translation_mat * rotation_mat * scale_mat;
+    }
+};
+
+constexpr size_t kCubesCount = 20;
+Transform transforms[kCubesCount];
+
 // Função MAIN
 int main()
 {
@@ -125,25 +145,6 @@ int main()
 
     std::srand(std::time(nullptr));
 
-    /// Transform component
-    struct Transform {
-        glm::vec3 position {0.0f};
-        glm::vec3 scale    {0.5f};
-        glm::vec3 rotation {0.0f};
-
-        glm::mat4 matrix() {
-            glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), position);
-            glm::mat4 rotation_mat = glm::mat4(1.0f);
-            rotation_mat = glm::rotate(rotation_mat, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-            rotation_mat = glm::rotate(rotation_mat, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-            rotation_mat = glm::rotate(rotation_mat, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
-            glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
-            return translation_mat * rotation_mat * scale_mat;
-        }
-    };
-
-    constexpr size_t kCubesCount = 20;
-    Transform transforms[kCubesCount];
     for (auto& transform : transforms) {
         transform.position.x = ((std::rand() % 1000) / 555.f) - 0.9f; // range [-0.9f, +0.9f]
         transform.position.y = ((std::rand() % 1000) / 555.f) - 0.9f; // range [-0.9f, +0.9f]
@@ -169,7 +170,9 @@ int main()
 
         for (int i = 0; i < kCubesCount; i++) {
             Transform transform = transforms[i];
-            transform.rotation += glm::vec3(angle);
+            if (rotateX) transform.rotation.x += angle;
+            if (rotateY) transform.rotation.y += angle;
+            if (rotateZ) transform.rotation.z += angle;
             model = transform.matrix();
 
             glUniformMatrix4fv(modelLoc, 1, false, glm::value_ptr(model));
@@ -191,6 +194,22 @@ int main()
     // Finaliza a execução da GLFW, limpando os recursos alocados por ela
     glfwTerminate();
     return 0;
+}
+
+void translate_cubes(glm::vec3 diff)
+{
+    for (int i = 0; i < kCubesCount; i++) {
+        auto& transform = transforms[i];
+        transform.position += diff;
+    }
+}
+
+void scale_cubes(glm::vec3 diff)
+{
+    for (int i = 0; i < kCubesCount; i++) {
+        auto& transform = transforms[i];
+        transform.scale += diff;
+    }
 }
 
 // Função de callback de teclado - só pode ter uma instância (deve ser estática se
@@ -215,9 +234,39 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     {
         rotateZ = !rotateZ;
     }
+
+    if (key == GLFW_KEY_W && (action == GLFW_PRESS || action == GLFW_REPEAT))
+    {
+        translate_cubes(glm::vec3(0.f, 0.1f, 0.f));
+    }
+
+    if (key == GLFW_KEY_A && (action == GLFW_PRESS || action == GLFW_REPEAT))
+    {
+        translate_cubes(glm::vec3(-0.1f, 0.f, 0.f));
+    }
+
+    if (key == GLFW_KEY_D && (action == GLFW_PRESS || action == GLFW_REPEAT))
+    {
+        translate_cubes(glm::vec3(0.1f, 0.f, 0.f));
+    }
+
+    if (key == GLFW_KEY_S && (action == GLFW_PRESS || action == GLFW_REPEAT))
+    {
+        translate_cubes(glm::vec3(0.f, -0.1f, 0.f));
+    }
+
+    if (key == GLFW_KEY_LEFT_BRACKET && (action == GLFW_PRESS || action == GLFW_REPEAT))
+    {
+        scale_cubes(glm::vec3(-0.1f));
+    }
+
+    if (key == GLFW_KEY_RIGHT_BRACKET && (action == GLFW_PRESS || action == GLFW_REPEAT))
+    {
+        scale_cubes(glm::vec3(0.1f));
+    }
 }
 
-//Esta função está basntante hardcoded - objetivo é compilar e "buildar" um programa de
+// Esta função está basntante hardcoded - objetivo é compilar e "buildar" um programa de
 // shader simples e único neste exemplo de código
 // O código fonte do vertex e fragment shader está nos arrays vertexShaderSource e
 // fragmentShader source no iniçio deste arquivo
