@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(AtividadesCG LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
 
 add_library(glad)
 target_sources(glad PRIVATE dependencies/GLAD-linux/src/glad.c)
