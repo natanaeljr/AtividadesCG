@@ -19,3 +19,12 @@ Vizualizador 3D
 Diretório: [Hello3D - OBJ](./Hello3D%20-%20OBJ)
  
 ![Hello3DObj](extras/hello3d-obj.gif)
+
+
+## Tarefa M3:
+
+Leitura de OBJ com texture.
+
+Diretório: [Hello3D - OBJ - Texture](./Hello3D%20-%20OBJ%20-%20Texture)
+ 
+![Hello3DObjTex](extras/hello3d-obj-tex.gif)
