@@ -273,7 +273,7 @@ GLTextureRef load_texture(std::string_view inpath, GLenum filter)
 // WINDOW
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static GLFWwindow* window;
+static GLFWwindow* window = nullptr;
 
 /// Load OpenGL pointers
 static void load_opengl()
@@ -284,7 +284,7 @@ static void load_opengl()
 }
 
 /// Initialize the Window with OpenGL context and core library globals
-int init_window(int width, int height, const char* title)
+auto init_window(int width, int height, const char* title) -> Context
 {
     /* TODO */
     spdlog::set_default_logger(spdlog::stdout_color_mt("core"));
@@ -300,7 +300,7 @@ int init_window(int width, int height, const char* title)
     if (window == nullptr) {
         CRITICAL("Failed to create GLFW window");
         glfwTerminate();
-        return -3;
+        return Context();
     }
     glfwMakeContextCurrent(window);
 
@@ -320,7 +320,7 @@ int init_window(int width, int height, const char* title)
     // Default globals
     load_generic_shader();
 
-    return 0;
+    return Context{};
 }
 
 /// Finalize the core and close the window
@@ -328,6 +328,7 @@ void close_window()
 {
     g_generic_shader.reset();
     glfwTerminate();
+    window = nullptr;
 }
 
 /// Check if the window should close
@@ -346,6 +347,17 @@ void poll_events()
 double get_time()
 {
     return glfwGetTime();
+}
+
+Context::~Context()
+{
+    if (window)
+        close_window();
+}
+
+bool Context::is_open() const
+{
+    return window != nullptr;
 }
 
 

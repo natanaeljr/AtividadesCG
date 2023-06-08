@@ -338,19 +338,24 @@ struct Object {
 // WINDOW
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Initialize the Window with OpenGL context and core library globals
-int init_window(int width, int height, const char* title);
+struct Context final {
+    ~Context();
+    bool is_open() const;
+};
 
-/// Finalize the core and close the window
-void close_window();
+/// Initialize the Window with OpenGL context and core library globals
+[[nodiscard]]
+auto init_window(int width, int height, const char* title) -> Context;
 
 /// Check if the window should close
+[[nodiscard]]
 bool window_should_close();
 
 /// Poll window events (mouse, keyboard, system)
 void poll_events();
 
 /// Get time since window init
+[[nodiscard]]
 double get_time();
 
 
