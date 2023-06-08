@@ -46,7 +46,7 @@ using Ref = std::shared_ptr<T...>;
 
 /// Utility type to make unique numbers (IDs) movable, when moved the value should be zero
 template<typename T>
-struct UniqueNum {
+struct UniqueNum final {
   T inner;
   UniqueNum() : inner(0) {}
   UniqueNum(T n) : inner(n) {}
@@ -64,7 +64,7 @@ auto read_file_to_string(const std::string& filename) -> std::optional<std::stri
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // COLORS
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-class Color {
+class Color final {
   public:
     constexpr Color() : inner() {}
     constexpr Color(float r, float g, float b, float a = 1.f) : inner{r, g, b, a} {}
@@ -80,11 +80,14 @@ class Color {
     glm::vec4 inner;
 };
 
-[[maybe_unused]] inline constexpr Color BLACK = {0.0f, 0.0f, 0.0f};
-[[maybe_unused]] inline constexpr Color WHITE = {1.0f, 1.0f, 1.0f};
-[[maybe_unused]] inline constexpr Color RED   = {1.0f, 0.0f, 0.0f};
-[[maybe_unused]] inline constexpr Color GREEN = {0.0f, 1.0f, 0.0f};
-[[maybe_unused]] inline constexpr Color BLUE  = {0.0f, 0.0f, 1.0f};
+[[maybe_unused]] inline constexpr Color BLACK      = {0.0f, 0.0f, 0.0f};
+[[maybe_unused]] inline constexpr Color WHITE      = {1.0f, 1.0f, 1.0f};
+[[maybe_unused]] inline constexpr Color GRAY       = {0.5f, 0.5f, 0.5f};
+[[maybe_unused]] inline constexpr Color DARK_GRAY  = {0.1f, 0.1f, 0.1f};
+[[maybe_unused]] inline constexpr Color LIGHT_GRAY = {0.9f, 0.9f, 0.9f};
+[[maybe_unused]] inline constexpr Color RED        = {1.0f, 0.0f, 0.0f};
+[[maybe_unused]] inline constexpr Color GREEN      = {0.0f, 1.0f, 0.0f};
+[[maybe_unused]] inline constexpr Color BLUE       = {0.0f, 0.0f, 1.0f};
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,8 +106,6 @@ enum class GLAttr {
 /// Enumeration of supported Shader Uniforms
 enum class GLUnif {
     COLOR,
-    OUTLINE_COLOR,
-    OUTLINE_THICKNESS,
     MODEL,
     VIEW,
     PROJECTION,
@@ -115,9 +116,8 @@ enum class GLUnif {
 
 /// Enumeration of supported Shader Subroutines
 enum class GLSub {
+    COLOR = 1,
     TEXTURE,
-    FONT,
-    COLOR,
 };
 
 /// GLShader represents an OpenGL shader program
@@ -185,11 +185,27 @@ const GLShader& default_shader();
 // TEXTURE
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct GLTexture{};
+/// Represents a texture loaded to GPU memory
+struct GLTexture final {
+    UniqueNum<GLuint> id;
+
+    ~GLTexture() {
+        if (id) glDeleteTextures(1, &id.inner);
+    }
+
+    // Movable but not Copyable
+    GLTexture(GLTexture&&) = default;
+    GLTexture(const GLTexture&) = delete;
+    GLTexture& operator=(GLTexture&&) = default;
+    GLTexture& operator=(const GLTexture&) = delete;
+
+    Ref<GLTexture> to_ref() { return std::make_shared<GLTexture>(std::move(*this)); }
+};
+
 using GLTextureRef = Ref<GLTexture>;
 
 /// Load a texture file from give path into GPU memory
-GLTextureRef load_texture(std::string_view path, GLenum min_filter);
+GLTextureRef load_texture(std::string_view path, GLenum filter);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,12 +214,8 @@ GLTextureRef load_texture(std::string_view path, GLenum min_filter);
 
 struct Pos2 {
     glm::vec2 inner;
+    constexpr Pos2(float v) : inner(v) {}
     constexpr Pos2(float x, float y) : inner(x, y) {}
-};
-
-struct Size2 {
-    glm::vec2 inner;
-    constexpr Size2(float v) : inner(v) {}
 };
 
 struct Pos3 {
@@ -212,6 +224,16 @@ struct Pos3 {
     constexpr Pos3(Pos2 p2) : inner(p2.inner, 1.f) {};
     constexpr Pos3(float x, float y, float z) : inner(x, y, z) {}
     constexpr Pos3(float v) : inner(v) {}
+};
+
+struct Size2 {
+    glm::vec2 inner;
+    constexpr Size2() : inner() {}
+    constexpr Size2(float v) : inner(v) {}
+    constexpr Size2(float x, float y) : inner(x, y) {}
+    constexpr auto operator->() { return &inner; }
+    constexpr const auto operator->() const { return &inner; }
+    constexpr operator glm::vec2() const { return inner; }
 };
 
 struct Size3 {
@@ -225,7 +247,27 @@ struct Size3 {
     constexpr operator glm::vec3() const { return inner; }
 };
 
-struct Transform{
+struct Rect {
+    union {
+        Pos2 top_left;
+        Pos2 tl;
+        struct {
+            float x0;
+            float y0;
+        };
+    };
+    union {
+        Pos2 bottom_right;
+        Pos2 br;
+        struct {
+            float x1;
+            float y1;
+        };
+    };
+    constexpr Rect() : top_left(0.f), bottom_right(1.f) {}
+};
+
+struct Transform {
     Pos3 position;
     Size3 scale;
     glm::vec3 rotation;
@@ -248,7 +290,7 @@ struct Transform{
 // OBJECTS
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct GLObject{
+struct GLObject final {
     UniqueNum<GLuint> vbo;
     UniqueNum<GLuint> ebo;
     UniqueNum<GLuint> vao;
@@ -345,16 +387,17 @@ void draw_color_glo(const GLObject& obj, const GLShader& shader, const glm::mat4
 /// Default usage of GL buffers for creating GLObjects
 constexpr const GLenum DEFAULT_GLO_USAGE = GL_STATIC_DRAW;
 
-/// Create a simple colored cuboid and load it into GPU buffers
+/// Create a cuboid and load it into GPU buffers
 Object create_cuboid(Size3 size, GLenum usage = DEFAULT_GLO_USAGE);
 Object create_color_cuboid(Size3 size, Color color[6], GLenum usage = DEFAULT_GLO_USAGE);
-Object create_texture_cuboid(Size3 size, GLTextureRef texture, GLenum usage = DEFAULT_GLO_USAGE);
+Object create_texture_cuboid(Size3 size, GLenum usage = DEFAULT_GLO_USAGE);
 
-/// Create a simple colored rectangle and load it into GPU buffers
+/// Create a rectangle and load it into GPU buffers
+Object create_rect(Size2 size, GLenum usage = DEFAULT_GLO_USAGE);
 Object create_color_rect(Size2 size, Color color, GLenum usage = DEFAULT_GLO_USAGE);
-
-/// Create a simple textured rectable and load it into GPU buffers
-//Object create_texture_rect(Size2 size, GLTextureRef texture);
+Object create_texture_rect(Size2 size, GLenum usage = DEFAULT_GLO_USAGE);
+Object create_texture_rect(Size2 size, GLTextureRef texture, GLenum usage = DEFAULT_GLO_USAGE);
+Object create_texture_rect(Size2 size, GLTextureRef texture, Rect texcoord, GLenum usage = DEFAULT_GLO_USAGE);
 
 /// Create a simple textured cuboid and load it into GPU buffers
 //Object create_texture_cuboid(Size3 size, GLTextureRef texture);

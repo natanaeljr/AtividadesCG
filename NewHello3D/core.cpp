@@ -8,6 +8,9 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 /// Simple Graphics Library
 namespace sgl {
 
@@ -204,38 +207,16 @@ in vec4 fColor;
 out vec4 outColor;
 uniform sampler2D uTexture0;
 uniform vec4 uColor;
-uniform vec4 uOutlineColor;
-uniform float uOutlineThickness;
 uniform int uSubRoutine;
-vec4 font_color();
 void main()
 {
-   if (uSubRoutine == 0) {
-       outColor = texture(uTexture0, fTexCoord);
-   } else if (uSubRoutine == 1) {
-       outColor = font_color();
-   } else if (uSubRoutine == 2) {
-       outColor = fColor;
-   } else {
-       outColor = uColor;
-   }
-}
-vec4 font_color()
-{
-    vec2 Offset = 1.0 / textureSize(uTexture0, 0) * uOutlineThickness;
-    vec4 n = texture2D(uTexture0, vec2(fTexCoord.x, fTexCoord.y - Offset.y));
-    vec4 e = texture2D(uTexture0, vec2(fTexCoord.x + Offset.x, fTexCoord.y));
-    vec4 s = texture2D(uTexture0, vec2(fTexCoord.x, fTexCoord.y + Offset.y));
-    vec4 w = texture2D(uTexture0, vec2(fTexCoord.x - Offset.x, fTexCoord.y));
-    vec4 TexColor = vec4(vec3(1.0), texture2D(uTexture0, fTexCoord).r);
-    float GrowedAlpha = TexColor.a;
-    GrowedAlpha = mix(GrowedAlpha, 1.0, s.r);
-    GrowedAlpha = mix(GrowedAlpha, 1.0, w.r);
-    GrowedAlpha = mix(GrowedAlpha, 1.0, n.r);
-    GrowedAlpha = mix(GrowedAlpha, 1.0, e.r);
-    vec4 OutlineColorWithNewAlpha = vec4(uOutlineColor.rgb, uOutlineColor.a * GrowedAlpha);
-    vec4 CharColor = TexColor * uColor;
-    return mix(OutlineColorWithNewAlpha, CharColor, CharColor.a);
+    if (uSubRoutine == 2) {
+        outColor = texture(uTexture0, fTexCoord);
+    } else if (uSubRoutine == 1) {
+        outColor = fColor;
+    } else {
+        outColor = uColor;
+    }
 }
 )";
 
@@ -251,11 +232,40 @@ vec4 font_color()
   shader->load_unif_loc(GLUnif::PROJECTION, "uProjection");
   shader->load_unif_loc(GLUnif::TEXTURE0, "uTexture0");
   shader->load_unif_loc(GLUnif::COLOR, "uColor");
-  shader->load_unif_loc(GLUnif::OUTLINE_COLOR, "uOutlineColor");
-  shader->load_unif_loc(GLUnif::OUTLINE_THICKNESS, "uOutlineThickness");
   shader->load_unif_loc(GLUnif::SUBROUTINE, "uSubRoutine");
 
   g_generic_shader = std::make_shared<GLShader>(std::move(*shader));
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// TEXTURE
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Load a texture file from give path into GPU memory
+GLTextureRef load_texture(std::string_view inpath, GLenum filter)
+{
+    //const std::string filepath = SPACESHIP_ASSETS_PATH + "/"s + inpath;
+    const std::string filepath = inpath.data();
+    auto file = read_file_to_string(filepath);
+    if (!file) { ERROR("Failed to read texture path ({})", filepath); return nullptr; }
+    int width, height, channels;
+    //stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load_from_memory((const uint8_t*)file->data(), file->length(), &width, &height, &channels, 0);
+    if (!data) { ERROR("Failed to load texture path ({})", filepath); return nullptr; }
+    ASSERT_MSG(channels == 4 || channels == 3, "actual channels: {}", channels);
+    GLenum type = (channels == 4) ? GL_RGBA : GL_RGB;
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    glTexImage2D(GL_TEXTURE_2D, 0, type, width, height, 0, type, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    stbi_image_free(data);
+    return GLTexture{ texture }.to_ref();
 }
 
 
@@ -279,7 +289,7 @@ int init_window(int width, int height, const char* title)
     /* TODO */
     spdlog::set_default_logger(spdlog::stdout_color_mt("core"));
     spdlog::set_pattern("%Y-%m-%d %T.%e <%^%l%$> [%n] %s:%#: %!() -> %v");
-    //spdlog::set_level(log_level);
+    spdlog::set_level(spdlog::level::debug);
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -371,17 +381,27 @@ void end_render()
 // DRAWING
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Render a textured GLObject with indices
+void draw_texture_glo(const GLObject& glo, const GLShader& shader, const GLTexture& texture, const glm::mat4& model)
+{
+  if (shader.unif_loc(GLUnif::SUBROUTINE) != -1)
+    glUniform1i(shader.unif_loc(GLUnif::SUBROUTINE), static_cast<int>(GLSub::TEXTURE));
+  glUniformMatrix4fv(shader.unif_loc(GLUnif::MODEL), 1, GL_FALSE, glm::value_ptr(model));
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texture.id);
+  glBindVertexArray(glo.vao);
+  glDrawElements(GL_TRIANGLES, glo.num_indices, glo.index_type, nullptr);
+}
+
 void draw_color_glo_unif(const GLObject& glo, const GLShader& shader, const Color color, const glm::mat4& model);
 
 /// Draw a generic object (textured or colored)
 void draw_object(const Object& obj) {
-    //if (obj.m_texture)
-        //draw_texture_glo(*obj.glo, *obj.m_texture, obj.m_transform.matrix());
-    //else
-    if (obj.m_color) {
+    if (obj.m_texture)
+        draw_texture_glo(*obj.m_glo, default_shader(), *obj.m_texture, obj.m_transform.matrix());
+    else if (obj.m_color) {
         draw_color_glo_unif(*obj.m_glo, default_shader(), *obj.m_color, obj.m_transform.matrix());
-    }
-    else {
+    } else {
         draw_color_glo(*obj.m_glo, obj.m_transform.matrix());
     }
 }
@@ -590,7 +610,7 @@ Object create_cuboid(Size3 s, GLenum usage)
 
 Object create_color_cuboid(Size3 s, Color c[6], GLenum usage)
 {
-    const std::array<glm::vec3, 8> p = cuboid_positions(s);
+    const auto p = cuboid_positions(s);
     const std::array<std::pair<glm::vec3, glm::vec4>, 24> vertices = {std::pair<glm::vec3, glm::vec4>
         /* i    X ,   Y  ,   Z  ,  R ,  G ,  B ,  A  */
         /* FRONT */
@@ -640,6 +660,102 @@ Object create_color_cuboid(Size3 s, Color c[6], GLenum usage)
         .add_indices(indices.data(), indices.size());
 
     return Object().glo(create_globject(va, usage).to_ref());
+}
+
+Object create_texture_cuboid(Size3 size, GLTextureRef texture, GLenum usage)
+{
+    const auto vertices = cuboid_positions(size);
+
+    auto va = VertexArray(vertices.size())
+        .add_buffer(vertices.data())
+        .add_attr<float>(GLAttr::POSITION, 3)
+        .add_attr<float>(GLAttr::TEXCOORD, 2);
+
+    return Object().glo(create_globject(va, usage).to_ref());
+}
+
+static constexpr auto rect_positions(Size2 s)
+{
+    std::array<glm::vec3, 8> vertices = {glm::vec3
+        /* i        X  ,   Y  ,   Z   */
+        /*[0]*/ { -s->x, +s->y, 0.f },
+        /*[1]*/ { -s->x, -s->y, 0.f },
+        /*[2]*/ { +s->x, -s->y, 0.f },
+        /*[3]*/ { +s->x, +s->y, 0.f },
+    };
+    return vertices;
+}
+
+/// Create a simple color-filled rectangle and load it into GPU buffers
+Object create_rect(Size2 size, GLenum usage)
+{
+    const auto vertices = rect_positions(size);
+    const std::array<unsigned char, 6> indices = {
+        0, 1, 2, 2, 3, 0,
+    };
+
+    auto va = VertexArray(vertices.size())
+        .add_buffer(vertices.data())
+        .add_attr<float>(GLAttr::POSITION, 3)
+        .add_indices(indices.data(), indices.size());
+
+    return Object().glo(create_globject(va, usage).to_ref());
+}
+
+Object create_color_rect(Size2 size, Color c, GLenum usage)
+{
+    const auto p = rect_positions(size);
+    const std::array<std::pair<glm::vec3, glm::vec4>, 4> vertices = {std::pair<glm::vec3, glm::vec4>
+        /* i    X ,   Y  ,   Z  ,  R ,  G ,  B ,  A  */
+        /*[ 0]*/ {p[0], c},
+        /*[ 1]*/ {p[1], c},
+        /*[ 2]*/ {p[2], c},
+        /*[ 3]*/ {p[3], c},
+    };
+    const std::array<unsigned char, 6> indices = {
+        0, 1, 2, 2, 3, 0,
+    };
+
+    auto va = VertexArray(vertices.size())
+        .add_buffer(vertices.data())
+        .add_attr<float>(GLAttr::POSITION, 3)
+        .add_attr<float>(GLAttr::COLOR, 4)
+        .add_indices(indices.data(), indices.size());
+
+    return Object().glo(create_globject(va, usage).to_ref());
+}
+
+Object create_texture_rect(Size2 size, GLenum usage)
+{
+    return create_texture_rect(size, nullptr, usage);
+}
+
+Object create_texture_rect(Size2 size, GLTextureRef texture, GLenum usage)
+{
+    return create_texture_rect(size, texture, Rect(), usage);
+}
+
+Object create_texture_rect(Size2 size, GLTextureRef texture, Rect r, GLenum usage)
+{
+    const auto p = rect_positions(size);
+    const std::array<std::pair<glm::vec3, glm::vec2>, 4> vertices = {std::pair<glm::vec3, glm::vec2>
+        /* i    X ,   Y  ,   Z  ,  S  ,  T  */
+        /*[ 0]*/ {p[0], {r.x0, r.y0} },
+        /*[ 1]*/ {p[1], {r.x0, r.y1} },
+        /*[ 2]*/ {p[2], {r.x1, r.y1} },
+        /*[ 3]*/ {p[3], {r.x1, r.y0} },
+    };
+    const std::array<unsigned char, 6> indices = {
+        0, 1, 2, 2, 3, 0,
+    };
+
+    auto va = VertexArray(vertices.size())
+        .add_buffer(vertices.data())
+        .add_attr<float>(GLAttr::POSITION, 3)
+        .add_attr<float>(GLAttr::TEXCOORD, 2)
+        .add_indices(indices.data(), indices.size());
+
+    return Object().glo(create_globject(va, usage).to_ref()).texture(texture);
 }
 
 } // namespace sgl
