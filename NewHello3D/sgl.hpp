@@ -330,14 +330,14 @@ struct Object {
 // WINDOW
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct Context final {
-    ~Context();
+struct GLWindow final {
+    ~GLWindow();
     bool is_open() const;
 };
 
 /// Initialize the Window with OpenGL context and core library globals
 [[nodiscard]]
-auto init_window(int width, int height, const char* title) -> Context;
+auto init_window(int width, int height, const char* title) -> GLWindow;
 
 /// Check if the window should close
 [[nodiscard]]

@@ -4,7 +4,7 @@ using namespace sgl;
 
 int main(int argc, char *argv[])
 {
-    Context ctx = init_window(800, 600, "Visualizador 3D");
+    GLWindow window = init_window(800, 600, "Visualizador 3D");
     ModelRef model = load_model("../../3D_Models/Suzanne/SuzanneTriTextured.obj");
     Object suzanne = create_mesh(model->meshes[0]);
     suzanne.scale(0.5f);

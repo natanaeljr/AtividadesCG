@@ -294,7 +294,7 @@ static void load_opengl()
 }
 
 /// Initialize the Window with OpenGL context and core library globals
-auto init_window(int width, int height, const char* title) -> Context
+auto init_window(int width, int height, const char* title) -> GLWindow
 {
     /* TODO */
     spdlog::set_default_logger(spdlog::stdout_color_mt("sgl"));
@@ -310,7 +310,7 @@ auto init_window(int width, int height, const char* title) -> Context
     if (window == nullptr) {
         CRITICAL("Failed to create GLFW window");
         glfwTerminate();
-        return Context();
+        return GLWindow();
     }
     glfwMakeContextCurrent(window);
 
@@ -331,7 +331,7 @@ auto init_window(int width, int height, const char* title) -> Context
     load_generic_shader();
     load_white_texture();
 
-    return Context{};
+    return GLWindow{};
 }
 
 /// Finalize the core and close the window
@@ -362,13 +362,13 @@ double get_time()
     return glfwGetTime();
 }
 
-Context::~Context()
+GLWindow::~GLWindow()
 {
     if (window)
         close_window();
 }
 
-bool Context::is_open() const
+bool GLWindow::is_open() const
 {
     return window != nullptr;
 }
