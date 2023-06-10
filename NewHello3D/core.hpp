@@ -116,7 +116,8 @@ enum class GLUnif {
 
 /// Enumeration of supported Shader Subroutines
 enum class GLSub {
-    COLOR = 1,
+    DEFAULT = 0,
+    COLOR = DEFAULT,
     TEXTURE,
 };
 
@@ -376,13 +377,6 @@ void end_render();
 
 /// Draw any object using default settings
 void draw_object(const Object& obj);
-
-//void draw_texture_glo(const GLObject& obj, const GLTexture& texture, const glm::mat4& model);
-//void draw_texture_glo(const GLObject& obj, const GLShader& shader, const GLTexture& texture, const glm::mat4& model);
-
-/// Draw a color-filled gl object with triangles primitive
-void draw_color_glo(const GLObject& obj, const glm::mat4& model);
-void draw_color_glo(const GLObject& obj, const GLShader& shader, const glm::mat4& model);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

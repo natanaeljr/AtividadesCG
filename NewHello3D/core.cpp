@@ -182,7 +182,7 @@ const GLShader& default_shader()
 /// (supports rendering: Colored objects, Textured objects and BitmapFont text)
 void load_generic_shader()
 {
-  static constexpr std::string_view kShaderVert = R"(
+    static constexpr std::string_view kShaderVert = R"(
 #version 330 core
 in vec3 aPosition;
 in vec2 aTexCoord;
@@ -200,7 +200,7 @@ void main()
 }
 )";
 
-  static constexpr std::string_view kShaderFrag = R"(
+    static constexpr std::string_view kShaderFrag = R"(
 #version 330 core
 in vec2 fTexCoord;
 in vec4 fColor;
@@ -210,31 +210,33 @@ uniform vec4 uColor;
 uniform int uSubRoutine;
 void main()
 {
-    if (uSubRoutine == 2) {
+    if (uSubRoutine == 1) {
         outColor = texture(uTexture0, fTexCoord);
-    } else if (uSubRoutine == 1) {
-        outColor = fColor;
-    } else {
-        outColor = uColor;
     }
+    else {
+        outColor = vec4(1.0);
+    }
+    outColor *= fColor * uColor;
 }
 )";
 
-  DEBUG("Loading Generic Shader");
-  auto shader = GLShader::build("GenericShader", kShaderVert, kShaderFrag);
-  ASSERT(shader);
-  shader->bind();
-  shader->load_attr_loc(GLAttr::POSITION, "aPosition");
-  shader->load_attr_loc(GLAttr::TEXCOORD, "aTexCoord");
-  shader->load_attr_loc(GLAttr::COLOR, "aColor");
-  shader->load_unif_loc(GLUnif::MODEL, "uModel");
-  shader->load_unif_loc(GLUnif::VIEW, "uView");
-  shader->load_unif_loc(GLUnif::PROJECTION, "uProjection");
-  shader->load_unif_loc(GLUnif::TEXTURE0, "uTexture0");
-  shader->load_unif_loc(GLUnif::COLOR, "uColor");
-  shader->load_unif_loc(GLUnif::SUBROUTINE, "uSubRoutine");
+    DEBUG("Loading Generic Shader");
+    auto shader = GLShader::build("GenericShader", kShaderVert, kShaderFrag);
+    ASSERT(shader);
+    shader->bind();
+    shader->load_attr_loc(GLAttr::POSITION, "aPosition");
+    shader->load_attr_loc(GLAttr::TEXCOORD, "aTexCoord");
+    shader->load_attr_loc(GLAttr::COLOR, "aColor");
+    shader->load_unif_loc(GLUnif::MODEL, "uModel");
+    shader->load_unif_loc(GLUnif::VIEW, "uView");
+    shader->load_unif_loc(GLUnif::PROJECTION, "uProjection");
+    shader->load_unif_loc(GLUnif::TEXTURE0, "uTexture0");
+    shader->load_unif_loc(GLUnif::COLOR, "uColor");
+    shader->load_unif_loc(GLUnif::SUBROUTINE, "uSubRoutine");
+    // default values for attributes
+    glVertexAttrib4fv(shader->attr_loc(GLAttr::COLOR), (float*)&WHITE);
 
-  g_generic_shader = std::make_shared<GLShader>(std::move(*shader));
+    g_generic_shader = std::make_shared<GLShader>(std::move(*shader));
 }
 
 
@@ -393,54 +395,38 @@ void end_render()
 // DRAWING
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Render a textured GLObject with indices
-void draw_texture_glo(const GLObject& glo, const GLShader& shader, const GLTexture& texture, const glm::mat4& model)
-{
-  if (shader.unif_loc(GLUnif::SUBROUTINE) != -1)
-    glUniform1i(shader.unif_loc(GLUnif::SUBROUTINE), static_cast<int>(GLSub::TEXTURE));
-  glUniformMatrix4fv(shader.unif_loc(GLUnif::MODEL), 1, GL_FALSE, glm::value_ptr(model));
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, texture.id);
-  glBindVertexArray(glo.vao);
-  glDrawElements(GL_TRIANGLES, glo.num_indices, glo.index_type, nullptr);
-}
-
-void draw_color_glo_unif(const GLObject& glo, const GLShader& shader, const Color color, const glm::mat4& model);
-
 /// Draw a generic object (textured or colored)
 void draw_object(const Object& obj) {
-    if (obj.m_texture)
-        draw_texture_glo(*obj.m_glo, default_shader(), *obj.m_texture, obj.m_transform.matrix());
-    else if (obj.m_color) {
-        draw_color_glo_unif(*obj.m_glo, default_shader(), *obj.m_color, obj.m_transform.matrix());
-    } else {
-        draw_color_glo(*obj.m_glo, obj.m_transform.matrix());
+    if (!obj.m_glo)
+        return;
+
+    const GLShader& shader = default_shader();
+    const GLObject& glo = *obj.m_glo;
+    const glm::mat4 model = obj.m_transform.matrix();
+    const Color color = obj.m_color ? *obj.m_color : WHITE;
+
+    // Set uniforms
+    if (auto uModel = shader.unif_loc(GLUnif::MODEL); uModel != -1)
+        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(model));
+
+    if (auto uColor = shader.unif_loc(GLUnif::COLOR); uColor != -1)
+        glUniform4fv(uColor, 1, (float*)&color.value());
+
+    auto subroutine = GLSub::DEFAULT;
+    if (obj.m_texture) {
+        subroutine = GLSub::TEXTURE;
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, obj.m_texture->id);
     }
-}
+    if (auto uSub = shader.unif_loc(GLUnif::SUBROUTINE); uSub != -1)
+        glUniform1i(uSub, (int)subroutine);
 
-void draw_color_glo(const GLObject& glo, const glm::mat4& model)
-{
-    draw_color_glo(glo, default_shader(), model);
-}
+    glBindVertexArray(obj.m_glo->vao);
 
-void draw_color_glo(const GLObject& glo, const GLShader& shader, const glm::mat4& model)
-{
-    if (shader.unif_loc(GLUnif::SUBROUTINE) != -1)
-        glUniform1i(shader.unif_loc(GLUnif::SUBROUTINE), static_cast<int>(GLSub::COLOR));
-    glUniformMatrix4fv(shader.unif_loc(GLUnif::MODEL), 1, GL_FALSE, glm::value_ptr(model));
-    glBindVertexArray(glo.vao);
-    glDrawElements(GL_TRIANGLES, glo.num_indices, glo.index_type, nullptr);
-}
-
-void draw_color_glo_unif(const GLObject& glo, const GLShader& shader, const Color color, const glm::mat4& model)
-{
-    if (shader.unif_loc(GLUnif::SUBROUTINE) != -1)
-        glUniform1i(shader.unif_loc(GLUnif::SUBROUTINE), 3);
-    if (shader.unif_loc(GLUnif::COLOR) != -1)
-        glUniform4fv(shader.unif_loc(GLUnif::COLOR), 1, (float*)&color.value());
-    glUniformMatrix4fv(shader.unif_loc(GLUnif::MODEL), 1, GL_FALSE, glm::value_ptr(model));
-    glBindVertexArray(glo.vao);
-    glDrawElements(GL_TRIANGLES, glo.num_indices, glo.index_type, nullptr);
+    if (obj.m_glo->num_indices)
+        glDrawElements(GL_TRIANGLES, obj.m_glo->num_indices, obj.m_glo->index_type, nullptr);
+    else
+        glDrawArrays(GL_TRIANGLES, 0, obj.m_glo->num_vertices);
 }
 
 
