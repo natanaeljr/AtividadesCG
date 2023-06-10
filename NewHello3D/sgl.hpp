@@ -201,6 +201,38 @@ GLTextureRef load_texture(std::string_view path, GLenum filter);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// MATERIAL
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Material {
+    GLTextureRef diffuse_tex;
+    // .. lightning values
+    Ref<Material> to_ref() { return std::make_shared<Material>(std::move(*this)); }
+};
+using MaterialRef = Ref<Material>;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// MESH/MODEL
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Represents one mesh with its vertices and material
+struct Mesh {
+    std::vector<float> vertices;
+    MaterialRef material;
+};
+
+/// Represents a loaded Model file with multiple meshes
+struct Model {
+    Mesh meshes[1]; // support only 1 mesh for now
+};
+using ModelRef = Ref<Model>;
+
+/// Load an OBJ model meshes and materials from file
+ModelRef load_model(std::string_view filepath);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // SPACE
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -282,6 +314,7 @@ struct Transform {
 // OBJECTS
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Represents an object loaded into GPU memory buffers
 struct GLObject final {
     UniqueNum<GLuint> vbo;
     UniqueNum<GLuint> ebo;
@@ -307,7 +340,7 @@ struct GLObject final {
 
 using GLObjectRef = Ref<GLObject>;
 
-
+/// Represents a complete object with base propertities for manipulation and renderable
 struct Object {
     GLObjectRef m_glo;
     Object& glo(GLObjectRef g) { m_glo = std::move(g); return *this; }
@@ -330,14 +363,14 @@ struct Object {
 // WINDOW
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct GLWindow final {
-    ~GLWindow();
+struct Window final {
+    ~Window();
     bool is_open() const;
 };
 
 /// Initialize the Window with OpenGL context and core library globals
 [[nodiscard]]
-auto init_window(int width, int height, const char* title) -> GLWindow;
+auto init_window(int width, int height, const char* title) -> Window;
 
 /// Check if the window should close
 [[nodiscard]]
@@ -398,30 +431,7 @@ Object create_texture_rect(Size2 size, GLTextureRef texture, Rect texcoord, GLen
 //GLObject create_color_sphere_glo(const GLShader& shader, float radius, Color color, GLenum usage);
 //GLObject create_color_mesh_glo(const GLShader& shader, Size3 size, Color color, GLenum usage);
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// MODEL
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct Material {
-    GLTextureRef diffuse_tex;
-    // .. lightning values
-    Ref<Material> to_ref() { return std::make_shared<Material>(std::move(*this)); }
-};
-using MaterialRef = Ref<Material>;
-
-struct Mesh {
-    std::vector<float> vertices;
-    MaterialRef material;
-};
-
-struct Model {
-    Mesh meshes[1]; // support only 1 mesh for now
-};
-using ModelRef = Ref<Model>;
-
-ModelRef load_model(std::string_view filepath);
-
+/// Create a mesh object with texture loaded into GPU buffers
 Object create_mesh(const Mesh& mesh, GLenum usage = DEFAULT_GLO_USAGE);
 
 
