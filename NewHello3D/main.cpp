@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         cube.rotate(glm::vec3(angle));
         cube2.rotate(glm::vec3(angle));
 
-        sgl::begin_render(sgl::DARK_GRAY);
+        sgl::begin_render(sgl::BLACK);
         sgl::draw_object(cube);
         sgl::draw_object(cube2);
         sgl::draw_object(rect);

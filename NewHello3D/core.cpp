@@ -170,12 +170,12 @@ auto GLShader::shader_type_str(GLenum shader_type) -> std::string_view
 }
 
 /// Core Generic Shader
-static Ref<GLShader> g_generic_shader;
+static Ref<GLShader> generic_shader;
 
 /// Get generic shader loaded by default
 const GLShader& default_shader()
 {
-    return *g_generic_shader;
+    return *generic_shader;
 }
 
 /// Load Generic Shader
@@ -206,17 +206,9 @@ in vec2 fTexCoord;
 in vec4 fColor;
 out vec4 outColor;
 uniform sampler2D uTexture0;
-uniform vec4 uColor;
-uniform int uSubRoutine;
 void main()
 {
-    if (uSubRoutine == 1) {
-        outColor = texture(uTexture0, fTexCoord);
-    }
-    else {
-        outColor = vec4(1.0);
-    }
-    outColor *= fColor * uColor;
+    outColor = texture(uTexture0, fTexCoord) * fColor;
 }
 )";
 
@@ -230,13 +222,8 @@ void main()
     shader->load_unif_loc(GLUnif::MODEL, "uModel");
     shader->load_unif_loc(GLUnif::VIEW, "uView");
     shader->load_unif_loc(GLUnif::PROJECTION, "uProjection");
-    shader->load_unif_loc(GLUnif::TEXTURE0, "uTexture0");
-    shader->load_unif_loc(GLUnif::COLOR, "uColor");
-    shader->load_unif_loc(GLUnif::SUBROUTINE, "uSubRoutine");
-    // default values for attributes
-    glVertexAttrib4fv(shader->attr_loc(GLAttr::COLOR), (float*)&WHITE);
 
-    g_generic_shader = std::make_shared<GLShader>(std::move(*shader));
+    generic_shader = std::make_shared<GLShader>(std::move(*shader));
 }
 
 
@@ -268,6 +255,24 @@ GLTextureRef load_texture(std::string_view inpath, GLenum filter)
     glGenerateMipmap(GL_TEXTURE_2D);
     stbi_image_free(data);
     return GLTexture{ texture }.to_ref();
+}
+
+/// 1x1 pixel default white texture
+static GLTextureRef white_texture = nullptr;
+
+/// Load a default 1x1 white texture for drawing color-filled only objects
+void load_white_texture()
+{
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    unsigned char data[] = { 255, 255, 255, 255 };
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    white_texture = GLTexture{ texture }.to_ref();
 }
 
 
@@ -319,8 +324,9 @@ auto init_window(int width, int height, const char* title) -> Context
     // OpenGL
     load_opengl();
 
-    // Default globals
+    // Default resources
     load_generic_shader();
+    load_white_texture();
 
     return Context{};
 }
@@ -328,7 +334,9 @@ auto init_window(int width, int height, const char* title) -> Context
 /// Finalize the core and close the window
 void close_window()
 {
-    g_generic_shader.reset();
+    generic_shader.reset();
+    white_texture.reset();
+
     glfwTerminate();
     window = nullptr;
 }
@@ -400,29 +408,27 @@ void draw_object(const Object& obj) {
     if (!obj.m_glo)
         return;
 
+    // aliases
     const GLShader& shader = default_shader();
     const GLObject& glo = *obj.m_glo;
+
+    // set uniforms
     const glm::mat4 model = obj.m_transform.matrix();
+    glUniformMatrix4fv(shader.unif_loc(GLUnif::MODEL), 1, GL_FALSE, glm::value_ptr(model));
+
+    // set attribute default value
     const Color color = obj.m_color ? *obj.m_color : WHITE;
+    glVertexAttrib4fv(shader.attr_loc(GLAttr::COLOR), (float*)&color);
 
-    // Set uniforms
-    if (auto uModel = shader.unif_loc(GLUnif::MODEL); uModel != -1)
-        glUniformMatrix4fv(uModel, 1, GL_FALSE, glm::value_ptr(model));
+    // bind texture
+    const GLuint tex_id = obj.m_texture ? obj.m_texture->id : white_texture->id;
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex_id);
 
-    if (auto uColor = shader.unif_loc(GLUnif::COLOR); uColor != -1)
-        glUniform4fv(uColor, 1, (float*)&color.value());
-
-    auto subroutine = GLSub::DEFAULT;
-    if (obj.m_texture) {
-        subroutine = GLSub::TEXTURE;
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, obj.m_texture->id);
-    }
-    if (auto uSub = shader.unif_loc(GLUnif::SUBROUTINE); uSub != -1)
-        glUniform1i(uSub, (int)subroutine);
-
+    // bind vao
     glBindVertexArray(obj.m_glo->vao);
 
+    // draw object
     if (obj.m_glo->num_indices)
         glDrawElements(GL_TRIANGLES, obj.m_glo->num_indices, obj.m_glo->index_type, nullptr);
     else

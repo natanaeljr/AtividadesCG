@@ -105,20 +105,10 @@ enum class GLAttr {
 
 /// Enumeration of supported Shader Uniforms
 enum class GLUnif {
-    COLOR,
     MODEL,
     VIEW,
     PROJECTION,
-    TEXTURE0,
-    SUBROUTINE,
     COUNT, // must be last
-};
-
-/// Enumeration of supported Shader Subroutines
-enum class GLSub {
-    DEFAULT = 0,
-    COLOR = DEFAULT,
-    TEXTURE,
 };
 
 /// GLShader represents an OpenGL shader program

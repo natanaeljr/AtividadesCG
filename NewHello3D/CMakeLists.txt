@@ -12,3 +12,6 @@ target_link_libraries(NewHello3D
     glfw
     spdlog::spdlog
 )
+target_compile_definitions(NewHello3D PRIVATE
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
+)
