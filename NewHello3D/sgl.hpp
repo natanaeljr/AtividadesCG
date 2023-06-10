@@ -418,8 +418,9 @@ struct Mesh {
 struct Model {
     Mesh meshes[1]; // support only 1 mesh for now
 };
+using ModelRef = Ref<Model>;
 
-auto load_model(std::string_view path) -> std::optional<Model>;
+ModelRef load_model(std::string_view filepath);
 
 Object create_mesh(const Mesh& mesh, GLenum usage = DEFAULT_GLO_USAGE);
 

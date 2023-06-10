@@ -2,7 +2,7 @@ find_package(spdlog REQUIRED)
 
 add_executable(NewHello3D
     main.cpp
-    core.cpp
+    sgl.cpp
 )
 target_include_directories(NewHello3D PRIVATE
     ../Common/include

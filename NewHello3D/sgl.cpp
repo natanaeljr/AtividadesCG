@@ -1,4 +1,4 @@
-#include "core.hpp"
+#include "sgl.hpp"
 
 #include <sstream>
 #include <fstream>
@@ -297,7 +297,7 @@ static void load_opengl()
 auto init_window(int width, int height, const char* title) -> Context
 {
     /* TODO */
-    spdlog::set_default_logger(spdlog::stdout_color_mt("core"));
+    spdlog::set_default_logger(spdlog::stdout_color_mt("sgl"));
     spdlog::set_pattern("%Y-%m-%d %T.%e <%^%l%$> [%n] %s:%#: %!() -> %v");
     spdlog::set_level(spdlog::level::debug);
 
@@ -797,12 +797,12 @@ auto load_mtl(const std::string& filename) -> std::optional<Material>
     return std::nullopt;
 }
 
-auto load_model(std::string_view filepath) -> std::optional<Model>
+ModelRef load_model(std::string_view filepath)
 {
     auto file = std::ifstream(filepath.data());
     if (!file.good()) {
         ERROR("Failed to open OBJ file {}, error: {}", filepath.data(), std::strerror(errno));
-        return std::nullopt;
+        return nullptr;
     }
 
     Model model;
@@ -856,13 +856,13 @@ auto load_model(std::string_view filepath) -> std::optional<Model>
             auto mtl = load_mtl(mtlpath);
             if (!mtl) {
                 ERROR("Failed to read MTL file: {}", mtlpath);
-                return std::nullopt;
+                return nullptr;
             }
             curr_mesh->material = mtl->to_ref();
         }
     }
 
-    return model;
+    return std::make_shared<Model>(std::move(model));
 }
 
 Object create_mesh(const Mesh& mesh, GLenum usage)
