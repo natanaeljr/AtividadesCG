@@ -10,8 +10,12 @@ int main(int argc, char *argv[])
 
     sgl::Object rect = sgl::create_rect(sgl::Size2(1.f)).color(sgl::RED);
     sgl::Object rect2 = sgl::create_color_rect(sgl::Size2(1.f), sgl::BLUE);
-    sgl::GLTextureRef mario = sgl::load_texture("../3D_Models/Suzanne/Cube.png", GL_NEAREST);
+    sgl::GLTextureRef mario = sgl::load_texture("../../3D_Models/Suzanne/Cube.png", GL_NEAREST);
     sgl::Object rect3 = sgl::create_texture_rect(sgl::Size2(1.f), mario);
+
+    //auto model = sgl::load_model("../../3D_Models/Suzanne/CuboTextured.obj");
+    auto model = sgl::load_model("../../3D_Models/Suzanne/SuzanneTriTextured.obj");
+    sgl::Object model_cube = sgl::create_mesh(model->meshes[0]);
 
     cube.position({-0.5f, +0.5f, 0.f});
     cube.scale(0.2f);
@@ -26,6 +30,8 @@ int main(int argc, char *argv[])
     rect3.position({+0.0f, -0.0f, 0.f});
     rect3.scale(0.2f);
 
+    model_cube.scale(0.5f);
+
     while (!sgl::window_should_close()) {
         sgl::poll_events();
 
@@ -35,13 +41,15 @@ int main(int argc, char *argv[])
         rect3.rotate(glm::vec3(angle));
         cube.rotate(glm::vec3(angle));
         cube2.rotate(glm::vec3(angle));
+        model_cube.rotate(glm::vec3(0.f, angle, 0.f));
 
-        sgl::begin_render(sgl::BLACK);
+        sgl::begin_render(sgl::DARK_GRAY);
         sgl::draw_object(cube);
         sgl::draw_object(cube2);
         sgl::draw_object(rect);
         sgl::draw_object(rect2);
         sgl::draw_object(rect3);
+        sgl::draw_object(model_cube);
         sgl::end_render();
     }
 

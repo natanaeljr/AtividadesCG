@@ -1,6 +1,9 @@
 #include "core.hpp"
 
+#include <sstream>
 #include <fstream>
+#include <filesystem>
+
 #include <GLFW/glfw3.h>
 
 #include <spdlog/spdlog.h>
@@ -239,7 +242,7 @@ GLTextureRef load_texture(std::string_view inpath, GLenum filter)
     auto file = read_file_to_string(filepath);
     if (!file) { ERROR("Failed to read texture path ({})", filepath); return nullptr; }
     int width, height, channels;
-    //stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load_from_memory((const uint8_t*)file->data(), file->length(), &width, &height, &channels, 0);
     if (!data) { ERROR("Failed to load texture path ({})", filepath); return nullptr; }
     ASSERT_MSG(channels == 4 || channels == 3, "actual channels: {}", channels);
@@ -760,6 +763,117 @@ Object create_texture_rect(Size2 size, GLTextureRef texture, Rect r, GLenum usag
         .add_indices(indices.data(), indices.size());
 
     return Object().glo(create_globject(va, usage).to_ref()).texture(texture);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// MODEL
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+auto load_mtl(const std::string& filename) -> std::optional<Material>
+{
+    auto file = std::ifstream(filename);
+    if (!file.good()) {
+        ERROR("Error opening MTL file '{}', error: {}", filename.data(), std::strerror(errno));
+        return std::nullopt;
+    }
+
+    Material material;
+    char buf[BUFSIZ];
+    while (file.getline(buf, sizeof(buf))) {
+        std::stringstream ss(buf);
+        std::string code;
+        ss >> code;
+        if (code == "map_Kd") {
+            std::string texture;
+            ss >> texture;
+            Material material;
+            auto tex_path = std::filesystem::path(filename).remove_filename().append(texture).string();
+            material.diffuse_tex = load_texture(tex_path, GL_LINEAR);
+            return material;
+        }
+    }
+
+    return std::nullopt;
+}
+
+auto load_model(std::string_view filepath) -> std::optional<Model>
+{
+    auto file = std::ifstream(filepath.data());
+    if (!file.good()) {
+        ERROR("Failed to open OBJ file {}, error: {}", filepath.data(), std::strerror(errno));
+        return std::nullopt;
+    }
+
+    Model model;
+    Mesh* curr_mesh = &model.meshes[0];
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> texcoords;
+
+    char buf[BUFSIZ];
+    while (file.getline(buf, sizeof(buf))) {
+        std::stringstream ss(buf);
+        std::string code;
+        ss >> code;
+        if (code == "v") {
+            glm::vec3 v;
+            ss >> v.x; ss >> v.y; ss >> v.z;
+            positions.push_back(v);
+        }
+        else if (code == "vn") {
+            glm::vec3 vn;
+            ss >> vn.x >> vn.y >> vn.z;
+            normals.push_back(vn);
+        }
+        else if (code == "vt") {
+            glm::vec2 vt;
+            ss >> vt.x; ss >> vt.y;
+            texcoords.push_back(vt);
+        }
+        else if (code == "f") {
+            glm::u32vec3 fv; // positions
+            glm::u32vec3 fvt; // textcoord
+            glm::u32vec3 fvn; // normal
+            ss >> fv[0]; ss.get() /*slash*/; ss >> fvt[0]; ss.get() /*slash*/; ss >> fvn[0];
+            ss >> fv[1]; ss.get() /*slash*/; ss >> fvt[1]; ss.get() /*slash*/; ss >> fvn[1];
+            ss >> fv[2]; ss.get() /*slash*/; ss >> fvt[2]; ss.get() /*slash*/; ss >> fvn[2];
+            fv -= glm::u32vec3(1); /* index is offset by 1 */
+            fvt -= glm::u32vec3(1); /* index is offset by 1 */
+            fvn -= glm::u32vec3(1); /* index is offset by 1 */
+            for (int i : {0, 1, 2}) {
+                curr_mesh->vertices.push_back(positions[fv[i]].x);
+                curr_mesh->vertices.push_back(positions[fv[i]].y);
+                curr_mesh->vertices.push_back(positions[fv[i]].z);
+                curr_mesh->vertices.push_back(texcoords[fvt[i]].s);
+                curr_mesh->vertices.push_back(texcoords[fvt[i]].t);
+            }
+        }
+        else if (code == "mtllib") {
+            std::string mtllib_str;
+            ss >> mtllib_str;
+            auto mtlpath = std::filesystem::path(filepath).remove_filename().append(mtllib_str).string();
+            auto mtl = load_mtl(mtlpath);
+            if (!mtl) {
+                ERROR("Failed to read MTL file: {}", mtlpath);
+                return std::nullopt;
+            }
+            curr_mesh->material = mtl->to_ref();
+        }
+    }
+
+    return model;
+}
+
+Object create_mesh(const Mesh& mesh, GLenum usage)
+{
+    constexpr auto kFloatsPerVertex = 5;
+    auto va = VertexArray(mesh.vertices.size() / kFloatsPerVertex)
+        .add_buffer(mesh.vertices.data())
+        .add_attr<float>(GLAttr::POSITION, 3)
+        .add_attr<float>(GLAttr::TEXCOORD, 2);
+
+    return Object().glo(create_globject(va, usage).to_ref()).texture(mesh.material->diffuse_tex);
 }
 
 } // namespace sgl

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -396,6 +397,31 @@ Object create_texture_rect(Size2 size, GLTextureRef texture, Rect texcoord, GLen
 //GLObject create_color_cube_glo(const GLShader& shader, Size3 size, Color color, GLenum usage);
 //GLObject create_color_sphere_glo(const GLShader& shader, float radius, Color color, GLenum usage);
 //GLObject create_color_mesh_glo(const GLShader& shader, Size3 size, Color color, GLenum usage);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// MODEL
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Material {
+    GLTextureRef diffuse_tex;
+    // .. lightning values
+    Ref<Material> to_ref() { return std::make_shared<Material>(std::move(*this)); }
+};
+using MaterialRef = Ref<Material>;
+
+struct Mesh {
+    std::vector<float> vertices;
+    MaterialRef material;
+};
+
+struct Model {
+    Mesh meshes[1]; // support only 1 mesh for now
+};
+
+auto load_model(std::string_view path) -> std::optional<Model>;
+
+Object create_mesh(const Mesh& mesh, GLenum usage = DEFAULT_GLO_USAGE);
 
 
 } // namespace sgl
