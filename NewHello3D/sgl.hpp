@@ -411,11 +411,13 @@ void draw_object(const Object& obj);
 constexpr const GLenum DEFAULT_GLO_USAGE = GL_STATIC_DRAW;
 
 /// Create a cuboid and load it into GPU buffers
+Object create_cube(GLenum usage = DEFAULT_GLO_USAGE);
 Object create_cuboid(Size3 size, GLenum usage = DEFAULT_GLO_USAGE);
 Object create_color_cuboid(Size3 size, Color color[6], GLenum usage = DEFAULT_GLO_USAGE);
 Object create_texture_cuboid(Size3 size, GLenum usage = DEFAULT_GLO_USAGE);
 
 /// Create a rectangle and load it into GPU buffers
+Object create_quad(GLenum usage = DEFAULT_GLO_USAGE);
 Object create_rect(Size2 size, GLenum usage = DEFAULT_GLO_USAGE);
 Object create_color_rect(Size2 size, Color color, GLenum usage = DEFAULT_GLO_USAGE);
 Object create_texture_rect(Size2 size, GLenum usage = DEFAULT_GLO_USAGE);

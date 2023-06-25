@@ -696,6 +696,11 @@ static constexpr auto cuboid_positions(Size3 s)
     return vertices;
 }
 
+Object create_cube(GLenum usage)
+{
+    return create_cuboid(Size3(1.f), usage);
+}
+
 /// Create a simple colored cuboid and load it into GPU buffers
 Object create_cuboid(Size3 s, GLenum usage)
 {
@@ -781,6 +786,11 @@ Object create_texture_cuboid(Size3 size, GLTextureRef texture, GLenum usage)
         .add_attr<float>(GLAttr::TEXCOORD, 2);
 
     return Object().glo(create_globject(va, usage).to_ref());
+}
+
+Object create_quad(GLenum usage)
+{
+    return create_rect(Size2(1.f), usage);
 }
 
 static constexpr auto rect_positions(Size2 s)
