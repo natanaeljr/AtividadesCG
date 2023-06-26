@@ -182,7 +182,7 @@ const GLShader& default_shader()
 }
 
 /// Load Generic Shader
-/// (supports rendering: Colored objects adn Textured objects)
+/// (supports rendering: Colored objects adn Textured objects with Phong Lighting)
 void load_generic_shader()
 {
     static constexpr std::string_view kShaderVert = R"(
@@ -190,28 +190,54 @@ void load_generic_shader()
 in vec3 aPosition;
 in vec2 aTexCoord;
 in vec4 aColor;
+in vec3 aNormal;
+out vec3 fPosition;
 out vec4 fColor;
 out vec2 fTexCoord;
+out vec3 fNormal;
 uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
 void main()
 {
     gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0f);
+    fPosition = vec3(uModel * vec4(aPosition, 1.0f));
     fTexCoord = aTexCoord;
     fColor = aColor;
+    fNormal = mat3(transpose(inverse(uModel))) * aNormal;
 }
 )";
 
     static constexpr std::string_view kShaderFrag = R"(
 #version 330 core
+in vec3 fPosition;
 in vec2 fTexCoord;
 in vec4 fColor;
+in vec3 fNormal;
 out vec4 outColor;
 uniform sampler2D uTexture0;
+uniform float ka;
+uniform float kd;
+uniform float ks;
+uniform float q;
+uniform vec3 uLightPos;
+uniform vec3 uLightColor;
+uniform vec3 uCameraPos;
 void main()
 {
-    outColor = texture(uTexture0, fTexCoord) * fColor;
+    vec3 color = (texture(uTexture0, fTexCoord) * fColor).rgb;
+    vec3 ambient = ka * uLightColor;
+    vec3 N = normalize(fNormal);
+    vec3 L = normalize(uLightPos - fPosition);
+    float diff = max(dot(N, L), 0.0);
+    vec3 diffuse = kd * diff * uLightColor;
+    vec3 V = normalize(uCameraPos - fPosition);
+    vec3 R = normalize(reflect(-L, N));
+    float spec = max(dot(R, V), 0.0);
+    spec = pow(spec, q);
+    vec3 specular = ks * spec * uLightColor;
+    vec3 result = (ambient + diffuse) * color + specular;
+    outColor = vec4(result, 1.0);
 }
 )";
 
@@ -222,9 +248,18 @@ void main()
     shader->load_attr_loc(GLAttr::POSITION, "aPosition");
     shader->load_attr_loc(GLAttr::TEXCOORD, "aTexCoord");
     shader->load_attr_loc(GLAttr::COLOR, "aColor");
+    shader->load_attr_loc(GLAttr::NORMAL, "aNormal");
     shader->load_unif_loc(GLUnif::MODEL, "uModel");
     shader->load_unif_loc(GLUnif::VIEW, "uView");
     shader->load_unif_loc(GLUnif::PROJECTION, "uProjection");
+    shader->load_unif_loc(GLUnif::TEXTURE0, "uTexture0");
+    shader->load_unif_loc(GLUnif::KA, "ka");
+    shader->load_unif_loc(GLUnif::KD, "kd");
+    shader->load_unif_loc(GLUnif::KS, "ks");
+    shader->load_unif_loc(GLUnif::Q, "q");
+    shader->load_unif_loc(GLUnif::LIGHT_POSITION, "uLightPos");
+    shader->load_unif_loc(GLUnif::LIGHT_COLOR, "uLightColor");
+    shader->load_unif_loc(GLUnif::CAMERA_POSITION, "uCameraPos");
 
     generic_shader = std::make_shared<GLShader>(std::move(*shader));
 }
@@ -292,7 +327,7 @@ static auto load_mtl(const std::string& filename) -> std::optional<Material>
         return std::nullopt;
     }
 
-    Material material;
+    Material material{};
     char buf[BUFSIZ];
     while (file.getline(buf, sizeof(buf))) {
         std::stringstream ss(buf);
@@ -301,14 +336,32 @@ static auto load_mtl(const std::string& filename) -> std::optional<Material>
         if (code == "map_Kd") {
             std::string texture;
             ss >> texture;
-            Material material;
             auto tex_path = std::filesystem::path(filename).remove_filename().append(texture).string();
             material.diffuse_tex = load_texture(tex_path, GL_LINEAR);
-            return material;
+        }
+        else if (code == "Ns") {
+            float ns;
+            ss >> ns;
+            material.q = ns;
+        }
+        else if (code == "Ka") {
+            float ka, dummy;
+            ss >> ka >> dummy >> dummy;
+            material.ka = ka;
+        }
+        else if (code == "Kd") {
+            float kd, dummy;
+            ss >> kd >> dummy >> dummy;
+            material.kd = kd;
+        }
+        else if (code == "Ks") {
+            float ks, dummy;
+            ss >> ks >> dummy >> dummy;
+            material.ks = ks;
         }
     }
 
-    return std::nullopt;
+    return material;
 }
 
 /// Load an OBJ model meshes and materials from file
@@ -362,6 +415,9 @@ ModelRef load_model(std::string_view filepath)
                 curr_mesh->vertices.push_back(positions[fv[i]].z);
                 curr_mesh->vertices.push_back(texcoords[fvt[i]].s);
                 curr_mesh->vertices.push_back(texcoords[fvt[i]].t);
+                curr_mesh->vertices.push_back(normals[fvn[i]].x);
+                curr_mesh->vertices.push_back(normals[fvn[i]].y);
+                curr_mesh->vertices.push_back(normals[fvn[i]].z);
             }
         }
         else if (code == "mtllib") {
@@ -379,6 +435,13 @@ ModelRef load_model(std::string_view filepath)
 
     return std::make_shared<Model>(std::move(model));
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// CAMERA
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+static Camera3D* camera = nullptr;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -433,6 +496,9 @@ auto init_window(int width, int height, const char* title) -> Window
     load_generic_shader();
     load_white_texture();
 
+    // Init main camera
+    camera = new Camera3D();
+
     return Window{};
 }
 
@@ -441,6 +507,7 @@ void close_window()
 {
     generic_shader.reset();
     white_texture.reset();
+    delete camera;
 
     glfwTerminate();
     window = nullptr;
@@ -492,9 +559,27 @@ void begin_render(Color color)
     glClearColor(c.r, c.g, c.b, c.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glm::mat4 mat(1.f);
-    glUniformMatrix4fv(default_shader().unif_loc(GLUnif::VIEW), 1, GL_FALSE, glm::value_ptr(mat));
-    glUniformMatrix4fv(default_shader().unif_loc(GLUnif::PROJECTION), 1, GL_FALSE, glm::value_ptr(mat));
+    const GLShader& shader = default_shader();
+
+    // Camera Position
+    glUniform3fv(shader.unif_loc(GLUnif::CAMERA_POSITION), 1, glm::value_ptr(camera->position));
+
+    // View matrix
+    glm::mat4 view = camera->view();
+    glUniformMatrix4fv(shader.unif_loc(GLUnif::VIEW), 1, GL_FALSE, glm::value_ptr(view));
+
+    // Project matrix
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+    float aspect = (float)width / (float)height;
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, +1.0f, -1.0f);
+    glUniformMatrix4fv(shader.unif_loc(GLUnif::PROJECTION), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Ambient Light
+    const glm::vec3 light_pos = {-2.0, 10.0, 2.0};
+    const glm::vec3 light_color = {1.0, 1.0, 1.0};
+    glUniform3fv(shader.unif_loc(GLUnif::LIGHT_COLOR), 1, glm::value_ptr(light_color));
+    glUniform3fv(shader.unif_loc(GLUnif::LIGHT_POSITION), 1, glm::value_ptr(light_pos));
 }
 
 /// End rendering procedure
@@ -520,15 +605,20 @@ void draw_object(const Object& obj) {
     // set uniforms
     const glm::mat4 model = obj.m_transform.matrix();
     glUniformMatrix4fv(shader.unif_loc(GLUnif::MODEL), 1, GL_FALSE, glm::value_ptr(model));
+    glUniform1f(shader.unif_loc(GLUnif::KA), obj.m_material.ka);
+    glUniform1f(shader.unif_loc(GLUnif::KD), obj.m_material.kd);
+    glUniform1f(shader.unif_loc(GLUnif::KS), obj.m_material.ks);
+    glUniform1f(shader.unif_loc(GLUnif::Q), obj.m_material.q);
 
     // set attribute default value
     const Color color = obj.m_color ? *obj.m_color : WHITE;
     glVertexAttrib4fv(shader.attr_loc(GLAttr::COLOR), (float*)&color);
 
     // bind texture
-    const GLuint tex_id = obj.m_texture ? obj.m_texture->id : white_texture->id;
+    const GLuint tex_id = obj.m_material.diffuse_tex ? obj.m_material.diffuse_tex->id : white_texture->id;
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_id);
+    glUniform1i(shader.unif_loc(GLUnif::TEXTURE0), 0);
 
     // bind vao
     glBindVertexArray(obj.m_glo->vao);
@@ -880,13 +970,17 @@ Object create_texture_rect(Size2 size, GLTextureRef texture, Rect r, GLenum usag
 /// Create a mesh object with texture loaded into GPU buffers
 Object create_mesh(const Mesh& mesh, GLenum usage)
 {
-    constexpr auto kFloatsPerVertex = 5;
+    constexpr auto kFloatsPerVertex = 3 + 2 + 3;
     auto va = VertexArray(mesh.vertices.size() / kFloatsPerVertex)
         .add_buffer(mesh.vertices.data())
         .add_attr<float>(GLAttr::POSITION, 3)
-        .add_attr<float>(GLAttr::TEXCOORD, 2);
+        .add_attr<float>(GLAttr::TEXCOORD, 2)
+        .add_attr<float>(GLAttr::NORMAL, 3);
 
-    return Object().glo(create_globject(va, usage).to_ref()).texture(mesh.material->diffuse_tex);
+    auto obj = Object().glo(create_globject(va, usage).to_ref());
+    if (mesh.material)
+        obj.material(*mesh.material);
+    return obj;
 }
 
 } // namespace sgl

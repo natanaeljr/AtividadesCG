@@ -99,8 +99,8 @@ class Color final {
 enum class GLAttr {
     POSITION,
     COLOR,
-    NORMAL,
     TEXCOORD,
+    NORMAL,
     COUNT, // must be last
 };
 
@@ -109,6 +109,14 @@ enum class GLUnif {
     MODEL,
     VIEW,
     PROJECTION,
+    TEXTURE0,
+    KA,
+    KD,
+    KS,
+    Q,
+    LIGHT_POSITION,
+    LIGHT_COLOR,
+    CAMERA_POSITION,
     COUNT, // must be last
 };
 
@@ -205,8 +213,12 @@ GLTextureRef load_texture(std::string_view path, GLenum filter);
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Material {
+    float ka = 1.0f;
+    float kd = 1.0f;
+    float ks = 1.0f;
+    float q  = 1.0f;
     GLTextureRef diffuse_tex;
-    // .. lightning values
+
     Ref<Material> to_ref() { return std::make_shared<Material>(std::move(*this)); }
 };
 using MaterialRef = Ref<Material>;
@@ -230,6 +242,22 @@ using ModelRef = Ref<Model>;
 
 /// Load an OBJ model meshes and materials from file
 ModelRef load_model(std::string_view filepath);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// CAMERA
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Represents a Perspective Camera
+struct Camera3D {
+    glm::vec3 position = {0.0, 0.0, 3.0};
+    glm::vec3 front = {0.0, 0.0, -1.0};
+    glm::vec3 up = {0.0, 1.0, 0.0};
+
+    glm::mat4 view() const {
+        return glm::lookAt(position, position + front, up);
+    }
+};
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,8 +376,9 @@ struct Object {
     std::optional<Color> m_color;
     Object& color(std::optional<Color> c) { m_color = std::move(c); return *this; }
 
-    GLTextureRef m_texture;
-    Object& texture(GLTextureRef t) { m_texture = std::move(t); return *this; }
+    Material m_material;
+    Object& material(Material m) { m_material = std::move(m); return *this; }
+    Object& texture(GLTextureRef t) { m_material.diffuse_tex = std::move(t); return *this; }
 
     Transform m_transform;
     Object& scale(Size3 s) { m_transform.scale = s; return *this; }
