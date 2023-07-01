@@ -151,6 +151,8 @@
     <ClCompile Include="..\glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="sgl.cpp" />
+    <ClCompile Include="Curve.cpp" />
+    <ClCompile Include="Bezier.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

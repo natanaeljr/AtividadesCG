@@ -992,7 +992,7 @@ Object create_texture_cuboid(Size3 size, GLTextureRef texture, GLenum usage)
         .add_attr<float>(GLAttr::POSITION, 3)
         .add_attr<float>(GLAttr::TEXCOORD, 2);
 
-    return Object().glo(create_globject(va, usage).to_ref());
+    return Object().glo(create_globject(va, usage).to_ref()).texture(texture);
 }
 
 Object create_quad(GLenum usage)
