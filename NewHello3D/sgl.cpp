@@ -438,17 +438,39 @@ ModelRef load_model(std::string_view filepath)
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// CAMERA
+// GLOBALS
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static Camera3D* camera = nullptr;
+static GLFWwindow* window = nullptr;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// CAMERA
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+static bool camera_control_enabled = false;
+
+Camera3D* get_main_camera()
+{
+    return camera;
+}
+
+void set_camera_control(bool enable)
+{
+    glfwSetInputMode(window, GLFW_CURSOR, enable ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+    camera_control_enabled = enable;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // WINDOW
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static GLFWwindow* window = nullptr;
+
+/// Handler callbacks
+static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 /// Load OpenGL pointers
 static void load_opengl()
@@ -479,15 +501,16 @@ auto init_window(int width, int height, const char* title) -> Window
     }
     glfwMakeContextCurrent(window);
 
-    // callbacks (TODO)
-    //glfwSetKeyCallback(window, key_event_callback);
+    // callbacks
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
     //glfwSetWindowFocusCallback(window, window_focus_callback);
     //glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    //glfwSetCursorPosCallback(window, cursor_position_callback);
 
     // settings
     glfwSetWindowAspectRatio(window, width, height);
     glfwSwapInterval(1); // vsync
+    glfwSetCursorPos(window, width / 2.f, height / 2.f);
 
     // OpenGL
     load_opengl();
@@ -542,10 +565,97 @@ bool Window::is_open() const
     return window != nullptr;
 }
 
+GLFWwindow* Window::get_native()
+{
+    return window;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// EVENTS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// User event handling pointers
+FnKeyHandler user_key_callback = nullptr;
+void* user_key_callback_cookie = nullptr;
+
+
+/// Set key event handler
+void set_key_callback(FnKeyHandler callback, void* cookie)
+{
+    user_key_callback = callback;
+    user_key_callback_cookie = cookie;
+}
+
+
+static void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (!camera_control_enabled)
+        return;
+
+    static float last_x = xpos;
+    static float last_y = ypos;
+
+    float offsetx = xpos - last_x;
+    float offsety = last_y - ypos;
+
+    last_x = xpos;
+    last_y = ypos;
+
+    constexpr float sensitivity = 0.05f;
+    offsetx *= sensitivity;
+    offsety *= sensitivity;
+
+    static float pitch = 0.0f;
+    static float yaw = -90.0f;
+
+    pitch += offsety;
+    yaw += offsetx;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+    camera->front = glm::normalize(front);
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+
+    if (camera_control_enabled) {
+        constexpr float kCameraSpeed = 0.05f;
+        if (key == GLFW_KEY_W) {
+            camera->position += camera->front * kCameraSpeed;
+        } else if (key == GLFW_KEY_S) {
+            camera->position -= camera->front * kCameraSpeed;
+        } else if (key == GLFW_KEY_A) {
+            camera->position -=
+                glm::normalize(glm::cross(camera->front, camera->up)) *
+                kCameraSpeed;
+        } else if (key == GLFW_KEY_D) {
+            camera->position +=
+                glm::normalize(glm::cross(camera->front, camera->up)) *
+                kCameraSpeed;
+        } else if (key == GLFW_KEY_TAB) {
+            camera->position -= camera->up * kCameraSpeed;
+        } else if (key == GLFW_KEY_SPACE) {
+            camera->position += camera->up * kCameraSpeed;
+        }
+    }
+
+    if (user_key_callback)
+        user_key_callback(window, key, scancode, action, mode, user_key_callback_cookie);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // RENDERING
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Ambient Light
+glm::vec3 light_pos = {-2.0, 10.0, 2.0};
+glm::vec3 light_color = {1.0, 1.0, 1.0};
 
 /// Prepare to render
 void begin_render(Color color)
@@ -576,8 +686,6 @@ void begin_render(Color color)
     glUniformMatrix4fv(shader.unif_loc(GLUnif::PROJECTION), 1, GL_FALSE, glm::value_ptr(projection));
 
     // Ambient Light
-    const glm::vec3 light_pos = {-2.0, 10.0, 2.0};
-    const glm::vec3 light_color = {1.0, 1.0, 1.0};
     glUniform3fv(shader.unif_loc(GLUnif::LIGHT_COLOR), 1, glm::value_ptr(light_color));
     glUniform3fv(shader.unif_loc(GLUnif::LIGHT_POSITION), 1, glm::value_ptr(light_pos));
 }
@@ -628,6 +736,13 @@ void draw_object(const Object& obj) {
         glDrawElements(GL_TRIANGLES, obj.m_glo->num_indices, obj.m_glo->index_type, nullptr);
     else
         glDrawArrays(GL_TRIANGLES, 0, obj.m_glo->num_vertices);
+}
+
+
+void draw_ambient_light_point()
+{
+    auto cube = create_cube().color(light_color).position(light_pos);
+    draw_object(cube);
 }
 
 

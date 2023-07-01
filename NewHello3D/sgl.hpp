@@ -16,6 +16,8 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+#include <GLFW/glfw3.h>
+
 /// Simple Graphics Library
 namespace sgl {
 
@@ -248,9 +250,9 @@ ModelRef load_model(std::string_view filepath);
 // CAMERA
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Represents a Perspective Camera
+/// Represents a Perspective Camera
 struct Camera3D {
-    glm::vec3 position = {0.0, 0.0, 3.0};
+    glm::vec3 position = {0.0, 0.0, 5.0};
     glm::vec3 front = {0.0, 0.0, -1.0};
     glm::vec3 up = {0.0, 1.0, 0.0};
 
@@ -258,6 +260,22 @@ struct Camera3D {
         return glm::lookAt(position, position + front, up);
     }
 };
+
+/// Return main perspective camera
+Camera3D* get_main_camera();
+
+/// Limit cursor to relative movement inside the window
+void set_camera_control(bool enable);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// EVENTS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef void (* FnKeyHandler)(GLFWwindow* window, int key, int scancode, int action, int mods, void* cookie);
+
+/// Set key event handler
+void set_key_callback(FnKeyHandler callback, void* cookie);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -273,6 +291,7 @@ struct Pos2 {
 struct Pos3 {
     glm::vec3 inner;
     constexpr Pos3() : inner() {}
+    constexpr Pos3(glm::vec3 v) : inner(v) {}
     constexpr Pos3(Pos2 p2) : inner(p2.inner, 1.f) {};
     constexpr Pos3(float x, float y, float z) : inner(x, y, z) {}
     constexpr Pos3(float v) : inner(v) {}
@@ -395,6 +414,7 @@ struct Object {
 struct Window final {
     ~Window();
     bool is_open() const;
+    GLFWwindow* get_native();
 };
 
 /// Initialize the Window with OpenGL context and core library globals
@@ -430,6 +450,9 @@ void end_render();
 
 /// Draw any object using default settings
 void draw_object(const Object& obj);
+
+/// Draw ambient light point for checking where it is
+void draw_ambient_light_point();
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
