@@ -40,3 +40,15 @@ OBS: Nessa atividade fiz o código differente... Criei um header e source (sgl.h
 Diretório: [NewHello3D - Lighting](./NewHello3D%20-%20Lighting)
  
 ![NewHello3D - Lighting](extras/newhello3d-lighting.gif)
+
+
+## Tarefa M5:
+
+Camera
+
+OBS: Na mesma linha da tarefa anterior, acrescentei código de controle da camera à minha biblioteca de SGL
+criada para abstrair os códigos gráficos.
+
+Diretório: [NewHello3D - Camera](./NewHello3D%20-%20Camera)
+ 
+![NewHello3D - Camera](extras/NewHello3D-camera.gif)
