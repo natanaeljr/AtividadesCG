@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
         suzanne.rotate(rotate_vector * angle);
         begin_render(DARK_GRAY);
         draw_object(suzanne);
-        //draw_object(plane);
+        draw_object(plane);
         draw_ambient_light_point();
         draw_object(cube);
         end_render();
