@@ -1,8 +1,8 @@
 find_package(spdlog REQUIRED)
 
 add_executable(NewHello3D
-    main.cpp
-    sgl.cpp
+    Exericio8/main.cpp
+    Exericio8/sgl.cpp
 )
 target_include_directories(NewHello3D PRIVATE
     ../Common/include

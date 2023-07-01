@@ -69,28 +69,28 @@ auto read_file_to_string(const std::string& filename) -> std::optional<std::stri
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class Color final {
   public:
-    constexpr Color() : inner() {}
-    constexpr Color(float r, float g, float b, float a = 1.f) : inner{r, g, b, a} {}
-    constexpr Color(glm::vec3 v) : inner{v, 1.f} {}
-    constexpr Color(glm::vec4 v) : inner{v} {}
-    constexpr operator glm::vec3() const { return inner; }
-    constexpr operator glm::vec4() const { return inner; }
-    constexpr auto operator->() { return &inner; }
-    constexpr const auto operator->() const { return &inner; }
-    constexpr glm::vec4& value() { return inner; }
-    constexpr const glm::vec4& value() const { return inner; }
+    Color() : inner() {}
+    Color(float r, float g, float b, float a = 1.f) : inner{r, g, b, a} {}
+    Color(glm::vec3 v) : inner{v, 1.f} {}
+    Color(glm::vec4 v) : inner{v} {}
+    operator glm::vec3() const { return inner; }
+    operator glm::vec4() const { return inner; }
+    auto operator->() { return &inner; }
+    const auto operator->() const { return &inner; }
+    glm::vec4& value() { return inner; }
+    const glm::vec4& value() const { return inner; }
   private:
     glm::vec4 inner;
 };
 
-[[maybe_unused]] inline constexpr Color BLACK      = {0.0f, 0.0f, 0.0f};
-[[maybe_unused]] inline constexpr Color WHITE      = {1.0f, 1.0f, 1.0f};
-[[maybe_unused]] inline constexpr Color GRAY       = {0.5f, 0.5f, 0.5f};
-[[maybe_unused]] inline constexpr Color DARK_GRAY  = {0.1f, 0.1f, 0.1f};
-[[maybe_unused]] inline constexpr Color LIGHT_GRAY = {0.9f, 0.9f, 0.9f};
-[[maybe_unused]] inline constexpr Color RED        = {1.0f, 0.0f, 0.0f};
-[[maybe_unused]] inline constexpr Color GREEN      = {0.0f, 1.0f, 0.0f};
-[[maybe_unused]] inline constexpr Color BLUE       = {0.0f, 0.0f, 1.0f};
+[[maybe_unused]] inline const Color BLACK      = {0.0f, 0.0f, 0.0f};
+[[maybe_unused]] inline const Color WHITE      = {1.0f, 1.0f, 1.0f};
+[[maybe_unused]] inline const Color GRAY       = {0.5f, 0.5f, 0.5f};
+[[maybe_unused]] inline const Color DARK_GRAY  = {0.1f, 0.1f, 0.1f};
+[[maybe_unused]] inline const Color LIGHT_GRAY = {0.9f, 0.9f, 0.9f};
+[[maybe_unused]] inline const Color RED        = {1.0f, 0.0f, 0.0f};
+[[maybe_unused]] inline const Color GREEN      = {0.0f, 1.0f, 0.0f};
+[[maybe_unused]] inline const Color BLUE       = {0.0f, 0.0f, 1.0f};
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -284,38 +284,38 @@ void set_key_callback(FnKeyHandler callback, void* cookie);
 
 struct Pos2 {
     glm::vec2 inner;
-    constexpr Pos2(float v) : inner(v) {}
-    constexpr Pos2(float x, float y) : inner(x, y) {}
+    Pos2(float v) : inner(v) {}
+    Pos2(float x, float y) : inner(x, y) {}
 };
 
 struct Pos3 {
     glm::vec3 inner;
-    constexpr Pos3() : inner() {}
-    constexpr Pos3(glm::vec3 v) : inner(v) {}
-    constexpr Pos3(Pos2 p2) : inner(p2.inner, 1.f) {};
-    constexpr Pos3(float x, float y, float z) : inner(x, y, z) {}
-    constexpr Pos3(float v) : inner(v) {}
+    Pos3() : inner() {}
+    Pos3(glm::vec3 v) : inner(v) {}
+    Pos3(Pos2 p2) : inner(p2.inner, 1.f) {};
+    Pos3(float x, float y, float z) : inner(x, y, z) {}
+    Pos3(float v) : inner(v) {}
 };
 
 struct Size2 {
     glm::vec2 inner;
-    constexpr Size2() : inner() {}
-    constexpr Size2(float v) : inner(v) {}
-    constexpr Size2(float x, float y) : inner(x, y) {}
-    constexpr auto operator->() { return &inner; }
-    constexpr const auto operator->() const { return &inner; }
-    constexpr operator glm::vec2() const { return inner; }
+    Size2() : inner() {}
+    Size2(float v) : inner(v) {}
+    Size2(float x, float y) : inner(x, y) {}
+    auto operator->() { return &inner; }
+    const auto operator->() const { return &inner; }
+    operator glm::vec2() const { return inner; }
 };
 
 struct Size3 {
     glm::vec3 inner;
-    constexpr Size3() : inner() {}
-    constexpr Size3(Size2 s) : inner(s.inner, 0.f) {}
-    constexpr Size3(float v) : inner(v) {}
-    constexpr Size3(float x, float y, float z) : inner(x, y, z) {}
-    constexpr auto operator->() { return &inner; }
-    constexpr const auto operator->() const { return &inner; }
-    constexpr operator glm::vec3() const { return inner; }
+    Size3() : inner() {}
+    Size3(Size2 s) : inner(s.inner, 0.f) {}
+    Size3(float v) : inner(v) {}
+    Size3(float x, float y, float z) : inner(x, y, z) {}
+    auto operator->() { return &inner; }
+    const auto operator->() const { return &inner; }
+    operator glm::vec3() const { return inner; }
 };
 
 struct Rect {
@@ -335,7 +335,7 @@ struct Rect {
             float y1;
         };
     };
-    constexpr Rect() : top_left(0.f), bottom_right(1.f) {}
+    Rect() : top_left(0.f), bottom_right(1.f) {}
 };
 
 struct Transform {
@@ -343,7 +343,7 @@ struct Transform {
     Size3 scale;
     glm::vec3 rotation;
 
-    constexpr operator glm::mat4() const { return glm::mat4(1.f); }
+    operator glm::mat4() const { return glm::mat4(1.f); }
 
     glm::mat4 matrix() const {
         glm::mat4 matrix(1.0f);

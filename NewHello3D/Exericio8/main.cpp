@@ -2,6 +2,8 @@
 
 using namespace sgl;
 
+const float PI = 3.14159265359;
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode, void* cookie);
 
 glm::vec3 rotate_vector = {0.f, 1.f, 0.f};
@@ -15,11 +17,13 @@ int main(int argc, char *argv[])
 
     Object plane = create_quad().color(GRAY);
     plane.scale(2.f);
-    plane.rotate({M_PI_2, 0.f, 0.f});
+    plane.rotate({PI/2, 0.f, 0.f});
     plane.position({0.f, -1.0f, 0.f});
 
     set_camera_control(true);
     set_key_callback(key_callback, nullptr);
+    Color colors[] = { WHITE, WHITE, WHITE, WHITE, WHITE, WHITE };
+    Object cube = create_color_cuboid(Size3(1.f), colors);
 
     while (!window_should_close()) {
         poll_events();
@@ -27,8 +31,9 @@ int main(int argc, char *argv[])
         suzanne.rotate(rotate_vector * angle);
         begin_render(DARK_GRAY);
         draw_object(suzanne);
-        draw_object(plane);
+        //draw_object(plane);
         draw_ambient_light_point();
+        draw_object(cube);
         end_render();
     }
 

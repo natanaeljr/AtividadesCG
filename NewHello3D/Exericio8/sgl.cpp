@@ -741,7 +741,9 @@ void draw_object(const Object& obj) {
 
 void draw_ambient_light_point()
 {
-    auto cube = create_cube().color(light_color).position(light_pos);
+    Color colors[] = { WHITE, WHITE, WHITE, WHITE, WHITE, WHITE };
+    Object cube = create_color_cuboid(Size3(1.f), colors);
+    //Object cube = create_cube().color(light_color);
     draw_object(cube);
 }
 
@@ -885,7 +887,7 @@ GLObject create_globject(VertexArray vertex_array, GLenum usage = DEFAULT_GLO_US
     return create_globject(default_shader(), vertex_array, usage);
 }
 
-static constexpr auto cuboid_positions(Size3 s)
+static auto cuboid_positions(Size3 s)
 {
     std::array<glm::vec3, 8> vertices = {glm::vec3
         /* i        X  ,   Y  ,   Z   */
@@ -998,7 +1000,7 @@ Object create_quad(GLenum usage)
     return create_rect(Size2(1.f), usage);
 }
 
-static constexpr auto rect_positions(Size2 s)
+static auto rect_positions(Size2 s)
 {
     std::array<glm::vec3, 8> vertices = {glm::vec3
         /* i        X  ,   Y  ,   Z   */
