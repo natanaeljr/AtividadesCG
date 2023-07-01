@@ -52,3 +52,12 @@ criada para abstrair os códigos gráficos.
 Diretório: [NewHello3D - Camera](./NewHello3D%20-%20Camera)
  
 ![NewHello3D - Camera](extras/NewHello3D-camera.gif)
+
+
+## Tarefa M6 + Prova GB:
+
+Projeto Final (incluindo Curvas Paramétricas)
+
+Diretório: [NewHello3D](./NewHello3D)
+ 
+![NewHello3D](extras/NewHello3D-final.gif)
